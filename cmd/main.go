@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"github.com/XiaoMiku01/biliup-go/login"
 	"github.com/XiaoMiku01/biliup-go/upload"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -24,8 +26,11 @@ func main() {
 	case loginCmd.FullCommand():
 		login.LoginBili()
 	case uploadCmd.FullCommand():
-		upload.NewUp(*cookie, *threadNum).
-			SetVideos(*tid, *upType, *videosPath, *coverPath, *videoTitle, *videoDesc, *tag, *source).
-			Up()
+		up, err := upload.NewUp(*cookie, *threadNum)
+		if err != nil {
+			log.Println(err.Error())
+			return
+		}
+		up.SetVideos(*tid, *upType, *videosPath, *coverPath, *videoTitle, *videoDesc, *tag, *source).Up()
 	}
 }

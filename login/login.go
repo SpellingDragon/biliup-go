@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,7 +17,7 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-func getTvQrcodeUrlAndAuthCode() (string, string) {
+func GetTvQrcodeUrlAndAuthCode() (string, string) {
 	api := "https://passport.bilibili.com/x/passport-tv-login/qrcode/auth_code"
 	data := make(map[string]string)
 	data["local_id"] = "0"
@@ -28,7 +29,8 @@ func getTvQrcodeUrlAndAuthCode() (string, string) {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		log.Printf("获取登录二维码失败:%s", err.Error())
+		return "", ""
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
@@ -38,11 +40,12 @@ func getTvQrcodeUrlAndAuthCode() (string, string) {
 		authCode := gjson.Parse(string(body)).Get("data.auth_code").String()
 		return qrcodeUrl, authCode
 	} else {
-		panic("get_tv_qrcode_url_and_auth_code error")
+		log.Printf("获取登录二维码失败:%d", code)
+		return "", ""
 	}
 }
 
-func verifyLogin(authCode string) {
+func VerifyLogin(authCode string) error {
 	api := "http://passport.bilibili.com/x/passport-tv-login/qrcode/poll"
 	data := make(map[string]string)
 	data["auth_code"] = authCode
@@ -56,24 +59,25 @@ func verifyLogin(authCode string) {
 	for {
 		resp, err := client.Do(req)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		body, _ := io.ReadAll(resp.Body)
 		code := gjson.Parse(string(body)).Get("code").Int()
 		if code == 0 {
 			fmt.Println("登录成功")
 			filename := "cookie.json"
-			err := os.WriteFile(filename, []byte(string(body)), 0644)
+			err = os.WriteFile(filename, body, 0644)
 			if err != nil {
-				panic(err)
+				return err
 			}
 			fmt.Println("cookie 已保存在", filename)
 			break
 		} else {
 			time.Sleep(time.Second * 3)
 		}
-		resp.Body.Close()
+		err = resp.Body.Close()
 	}
+	return nil
 }
 
 var appkey = "4409e2ce8ffd12b8"
@@ -108,9 +112,9 @@ func mapToString(params map[string]string) string {
 func LoginBili() {
 	fmt.Println("请最大化窗口，以确保二维码完整显示，回车继续")
 	fmt.Scanf("%s", "")
-	loginUrl, authCode := getTvQrcodeUrlAndAuthCode()
+	loginUrl, authCode := GetTvQrcodeUrlAndAuthCode()
 	qrcode := qrcodeTerminal.New()
 	qrcode.Get([]byte(loginUrl)).Print()
 	fmt.Println("或将此链接复制到手机B站打开:", loginUrl)
-	verifyLogin(authCode)
+	_ = VerifyLogin(authCode)
 }
