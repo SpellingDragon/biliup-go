@@ -45,7 +45,7 @@ func GetTvQrcodeUrlAndAuthCode() (string, string) {
 	}
 }
 
-func VerifyLogin(authCode string) error {
+func VerifyLogin(authCode string, filename string) error {
 	api := "http://passport.bilibili.com/x/passport-tv-login/qrcode/poll"
 	data := make(map[string]string)
 	data["auth_code"] = authCode
@@ -56,26 +56,30 @@ func VerifyLogin(authCode string) error {
 	client := http.Client{}
 	req, _ := http.NewRequest("POST", api, dataString)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	for {
-		resp, err := client.Do(req)
-		if err != nil {
-			return err
-		}
-		body, _ := io.ReadAll(resp.Body)
-		code := gjson.Parse(string(body)).Get("code").Int()
-		if code == 0 {
-			fmt.Println("登录成功")
-			filename := "cookie.json"
-			err = os.WriteFile(filename, body, 0644)
+	select {
+	case <-time.After(60 * time.Second):
+		return nil
+	default:
+		for {
+			resp, err := client.Do(req)
 			if err != nil {
 				return err
 			}
-			fmt.Println("cookie 已保存在", filename)
-			break
-		} else {
-			time.Sleep(time.Second * 3)
+			body, _ := io.ReadAll(resp.Body)
+			code := gjson.Parse(string(body)).Get("code").Int()
+			if code == 0 {
+				fmt.Println("登录成功")
+				err = os.WriteFile(filename, body, 0644)
+				if err != nil {
+					return err
+				}
+				fmt.Println("cookie 已保存在", filename)
+				break
+			} else {
+				time.Sleep(time.Second * 3)
+			}
+			err = resp.Body.Close()
 		}
-		err = resp.Body.Close()
 	}
 	return nil
 }
@@ -116,5 +120,5 @@ func LoginBili() {
 	qrcode := qrcodeTerminal.New()
 	qrcode.Get([]byte(loginUrl)).Print()
 	fmt.Println("或将此链接复制到手机B站打开:", loginUrl)
-	_ = VerifyLogin(authCode)
+	_ = VerifyLogin(authCode, "cookie.json")
 }
