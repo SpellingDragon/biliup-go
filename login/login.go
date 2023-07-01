@@ -45,7 +45,7 @@ func GetTvQrcodeUrlAndAuthCode() (string, string) {
 	}
 }
 
-func VerifyLogin(authCode string, filename string) error {
+func VerifyLogin(authCode string, filename string) (err error) {
 	api := "http://passport.bilibili.com/x/passport-tv-login/qrcode/poll"
 	data := make(map[string]string)
 	data["auth_code"] = authCode
@@ -61,9 +61,9 @@ func VerifyLogin(authCode string, filename string) error {
 		return nil
 	default:
 		for {
-			resp, err := client.Do(req)
-			if err != nil {
-				return err
+			resp, reqErr := client.Do(req)
+			if reqErr != nil {
+				return reqErr
 			}
 			body, _ := io.ReadAll(resp.Body)
 			code := gjson.Parse(string(body)).Get("code").Int()
@@ -81,7 +81,7 @@ func VerifyLogin(authCode string, filename string) error {
 			err = resp.Body.Close()
 		}
 	}
-	return nil
+	return err
 }
 
 var appkey = "4409e2ce8ffd12b8"
