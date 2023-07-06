@@ -128,9 +128,34 @@ func (u *Up) uploadCover(path string) string {
 	if path == "" {
 		return ""
 	}
-	bytes, err := os.ReadFile(path)
-	if err != nil {
-		log.Fatal(err)
+	var bytes []byte
+	var err error
+	if !strings.HasPrefix(path, "http") {
+		bytes, err = os.ReadFile(path)
+		if err != nil {
+			log.Println(err)
+			return ""
+		}
+	} else {
+		resp, err := http.Get(path)
+		if err != nil {
+			log.Println("Error fetching image:", err)
+			return ""
+		}
+		defer resp.Body.Close()
+		// 创建一个新文件并将响应写入其中
+		file, err := os.Create("image.jpg")
+		if err != nil {
+			log.Println("Error creating file:", err)
+			return ""
+		}
+		defer file.Close()
+		// 将响应体写入文件
+		bytes, err = io.ReadAll(resp.Body)
+		if err != nil {
+			log.Println("Error writing to file:", err)
+			return ""
+		}
 	}
 	var base64Encoding string
 	mimeType := http.DetectContentType(bytes)
@@ -142,7 +167,7 @@ func (u *Up) uploadCover(path string) string {
 	case "image/gif":
 		base64Encoding = "data:image/gif;base64,"
 	default:
-		log.Fatal("不支持的图片格式")
+		log.Println("不支持的图片格式")
 	}
 	base64Encoding += base64.StdEncoding.EncodeToString(bytes)
 	var coverinfo CoverInfo
