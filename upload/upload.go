@@ -55,6 +55,7 @@ type UpVideo struct {
 	uploadId      string
 	chunkSize     int64
 	bizId         int64
+	metaUposUrl   string
 }
 
 var wg sync.WaitGroup
@@ -198,6 +199,7 @@ func (u *Up) Up() error {
 	u.upVideo.chunkSize = preupinfo.ChunkSize
 	u.upVideo.auth = preupinfo.Auth
 	u.upVideo.bizId = preupinfo.BizId
+	u.upVideo.metaUposUrl = preupinfo.UposUri
 	err := u.upload()
 	if err != nil {
 		return err
@@ -252,7 +254,7 @@ func (u *Up) upload() error {
 		"filesize":      strconv.FormatInt(u.upVideo.videoSize, 10),
 		"partsize":      strconv.FormatInt(u.upVideo.chunkSize, 10),
 		"biz_id":        strconv.FormatInt(u.upVideo.bizId, 10),
-		"meta_upos_uri": u.getMetaUposUri(),
+		"meta_upos_uri": u.upVideo.metaUposUrl,
 	}
 	var upinfo UpInfo
 	rsp, err := u.client.SetCommonHeader(
