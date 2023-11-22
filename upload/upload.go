@@ -254,7 +254,7 @@ func (u *Up) upload() error {
 		"filesize":      strconv.FormatInt(u.upVideo.videoSize, 10),
 		"partsize":      strconv.FormatInt(u.upVideo.chunkSize, 10),
 		"biz_id":        strconv.FormatInt(u.upVideo.bizId, 10),
-		"meta_upos_uri": u.upVideo.metaUposUrl,
+		"meta_upos_uri": u.getMetaUposUri(u.videoTitle, strconv.FormatInt(u.getVideoSize(), 10)),
 	}
 	var upinfo UpInfo
 	rsp, err := u.client.SetCommonHeader(
@@ -400,17 +400,16 @@ func (u *Up) uploadPartWrapper(chunk int, start, end, size int, buf []byte, bar 
 	}
 }
 
-func (u *Up) getMetaUposUri() string {
+func (u *Up) getMetaUposUri(title string, totalSize string) string {
 	var metaUposUri PreUpInfo
 	u.client.R().SetQueryParams(map[string]string{
-		"name":       "file_meta.txt",
-		"size":       "2000",
-		"r":          "upos",
-		"profile":    "fxmeta/bup",
-		"ssl":        "0",
-		"version":    "2.10.4",
-		"build":      "2100400",
-		"webVersion": "2.0.0",
+		"name":    title,
+		"size":    totalSize,
+		"r":       "upos",
+		"profile": "ugcupos/bup",
+		"ssl":     "0",
+		"version": "2.8.12",
+		"build":   "2081200",
 	}).SetResult(&metaUposUri).Get("https://member.bilibili.com/preupload")
 	return metaUposUri.UposUri
 }
