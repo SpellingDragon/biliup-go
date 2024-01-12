@@ -182,19 +182,19 @@ func (u *Up) uploadCover(path string) string {
 func (u *Up) Up() error {
 	var preupinfo PreUpInfo
 	u.client.R().SetQueryParams(map[string]string{
-		"probe_version": "20211012",
+		"probe_version": "20221109",
 		"upcdn":         "bda2",
-		"zone":          "cs",
 		"name":          u.upVideo.videoName,
 		"r":             "upos",
-		"profile":       "ugcfx/bup",
+		"profile":       "ugcupos/bup",
 		"ssl":           "0",
 		"version":       "2.10.4.0",
 		"build":         "2100400",
 		"size":          strconv.FormatInt(u.upVideo.videoSize, 10),
 		"webVersion":    "2.0.0",
 	}).SetResult(&preupinfo).Get("https://member.bilibili.com/preupload")
-	u.upVideo.uploadBaseUrl = fmt.Sprintf("https:%s/%s", preupinfo.Endpoint, strings.Split(preupinfo.UposUri, "//")[1])
+	u.upVideo.uploadBaseUrl = fmt.Sprintf("https:%s/%s?uploads&output=json",
+		preupinfo.Endpoint, strings.Split(preupinfo.UposUri, "//")[1])
 	u.upVideo.biliFileName = strings.Split(strings.Split(strings.Split(preupinfo.UposUri, "//")[1], "/")[1], ".")[0]
 	u.upVideo.chunkSize = preupinfo.ChunkSize
 	u.upVideo.auth = preupinfo.Auth
@@ -250,7 +250,7 @@ func (u *Up) upload() error {
 	uploadParamMap := map[string]string{
 		"uploads":       "",
 		"output":        "json",
-		"profile":       "ugcfx/bup",
+		"profile":       "ugcupos/bup",
 		"filesize":      strconv.FormatInt(u.upVideo.videoSize, 10),
 		"partsize":      strconv.FormatInt(u.upVideo.chunkSize, 10),
 		"biz_id":        strconv.FormatInt(u.upVideo.bizId, 10),
@@ -311,7 +311,7 @@ func (u *Up) upload() error {
 	jsonString, _ := json.Marshal(&reqjson)
 	uploadParamMap = map[string]string{
 		"output":   "json",
-		"profile":  "ugcfx/bup",
+		"profile":  "ugcupos/bup",
 		"name":     u.upVideo.videoName,
 		"uploadId": u.upVideo.uploadId,
 		"biz_id":   strconv.FormatInt(u.upVideo.bizId, 10),
@@ -408,8 +408,8 @@ func (u *Up) getMetaUposUri(title string, totalSize string) string {
 		"r":       "upos",
 		"profile": "ugcupos/bup",
 		"ssl":     "0",
-		"version": "2.8.12",
-		"build":   "2081200",
+		"version": "2.10.4.0",
+		"build":   "2100400",
 	}).SetResult(&metaUposUri).Get("https://member.bilibili.com/preupload")
 	return metaUposUri.UposUri
 }
