@@ -182,7 +182,7 @@ func (u *Up) uploadCover(path string) string {
 
 func (u *Up) Up() error {
 	// 获取预上传信息
-	preupinfo := u.getPreUpInfo(u.upVideo.videoName, u.upVideo.videoSize)
+	preupinfo := u.getPreUpInfo(u.upVideo.videoName, u.upVideo.videoSize, uploadProfile)
 	// 设置上传参数
 	upURI := strings.Split(preupinfo.UposUri, "://")[1]
 	u.upVideo.uploadBaseUrl =
@@ -191,7 +191,7 @@ func (u *Up) Up() error {
 	u.upVideo.chunkSize = preupinfo.ChunkSize
 	u.upVideo.auth = preupinfo.Auth
 	u.upVideo.bizId = preupinfo.BizId
-	u.upVideo.metaUposUrl = preupinfo.UposUri
+	u.upVideo.metaUposUrl = u.getPreUpInfo(u.upVideo.videoName, u.upVideo.videoSize, metaProfile).UposUri
 	// 上传
 	err := u.upload()
 	if err != nil {
@@ -236,7 +236,8 @@ func (u *Up) Up() error {
 	return err
 }
 
-const lineProfile = "ugcfx/bup"
+const uploadProfile = "ugcfx/bup"
+const metaProfile = "fxmeta/bup"
 
 func (u *Up) upload() error {
 	defer ants.Release()
@@ -246,7 +247,7 @@ func (u *Up) upload() error {
 	uploadParamMap := map[string]string{
 		"uploads":       "",
 		"output":        "json",
-		"profile":       lineProfile,
+		"profile":       uploadProfile,
 		"filesize":      strconv.FormatInt(u.upVideo.videoSize, 10),
 		"partsize":      strconv.FormatInt(u.upVideo.chunkSize, 10),
 		"biz_id":        strconv.FormatInt(u.upVideo.bizId, 10),
@@ -307,7 +308,7 @@ func (u *Up) upload() error {
 	jsonString, _ := json.Marshal(&reqjson)
 	uploadParamMap = map[string]string{
 		"output":   "json",
-		"profile":  lineProfile,
+		"profile":  uploadProfile,
 		"name":     u.upVideo.videoName,
 		"uploadId": u.upVideo.uploadId,
 		"biz_id":   strconv.FormatInt(u.upVideo.bizId, 10),
@@ -396,13 +397,13 @@ func (u *Up) uploadPartWrapper(chunk int, start, end, size int, buf []byte, bar 
 	}
 }
 
-func (u *Up) getPreUpInfo(title string, totalSize int64) *PreUpInfo {
-	var metaUposUri PreUpInfo
+func (u *Up) getPreUpInfo(title string, totalSize int64, profile string) *PreUpInfo {
+	var preUpInfo PreUpInfo
 	u.client.R().SetQueryParams(map[string]string{
 		"name":          title,
 		"size":          strconv.FormatInt(totalSize, 10),
 		"r":             "upos",
-		"profile":       lineProfile,
+		"profile":       profile,
 		"ssl":           "0",
 		"version":       "2.14.0.0",
 		"build":         "2140000",
@@ -410,6 +411,6 @@ func (u *Up) getPreUpInfo(title string, totalSize int64) *PreUpInfo {
 		"upcdn":         "bldsa",
 		"zone":          "cs",
 		"webVersion":    "2.14.0",
-	}).SetResult(&metaUposUri).Get("https://member.bilibili.com/preupload") // 移除URL中的查询参数
-	return &metaUposUri
+	}).SetResult(&preUpInfo).Get("https://member.bilibili.com/preupload") // 移除URL中的查询参数
+	return &preUpInfo
 }
