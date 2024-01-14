@@ -180,30 +180,23 @@ func (u *Up) uploadCover(path string) string {
 }
 
 func (u *Up) Up() error {
-	var preupinfo PreUpInfo
-	u.client.R().SetQueryParams(map[string]string{
-		"probe_version": "20221109",
-		"upcdn":         "bda2",
-		"name":          u.upVideo.videoName,
-		"r":             "upos",
-		"profile":       "ugcupos/bup",
-		"ssl":           "0",
-		"version":       "2.10.4.0",
-		"build":         "2100400",
-		"size":          strconv.FormatInt(u.upVideo.videoSize, 10),
-		"webVersion":    "2.0.0",
-	}).SetResult(&preupinfo).Get("https://member.bilibili.com/preupload")
-	u.upVideo.uploadBaseUrl = fmt.Sprintf("https:%s/%s?uploads&output=json",
-		preupinfo.Endpoint, strings.Split(preupinfo.UposUri, "//")[1])
-	u.upVideo.biliFileName = strings.Split(strings.Split(strings.Split(preupinfo.UposUri, "//")[1], "/")[1], ".")[0]
+	// 获取预上传信息
+	preupinfo := u.getPreUpInfo(u.upVideo.videoName, u.upVideo.videoSize)
+	// 设置上传参数
+	upURI := strings.Split(preupinfo.UposUri, "://")[1]
+	u.upVideo.uploadBaseUrl =
+		fmt.Sprintf("https:%s/%s?uploads&output=json", preupinfo.Endpoint, upURI)
+	u.upVideo.biliFileName = strings.Split(strings.Split(upURI, "/")[1], ".")[0]
 	u.upVideo.chunkSize = preupinfo.ChunkSize
 	u.upVideo.auth = preupinfo.Auth
 	u.upVideo.bizId = preupinfo.BizId
 	u.upVideo.metaUposUrl = preupinfo.UposUri
+	// 上传
 	err := u.upload()
 	if err != nil {
 		return err
 	}
+	// 设置投稿信息
 	var addreq = AddReqJson{
 		Copyright:    u.upType,
 		Cover:        u.upVideo.coverUrl,
@@ -242,6 +235,8 @@ func (u *Up) Up() error {
 	return err
 }
 
+const lineProfile = "ugcupos/bup"
+
 func (u *Up) upload() error {
 	defer ants.Release()
 	if u.upVideo.videoSize == 0 {
@@ -250,11 +245,11 @@ func (u *Up) upload() error {
 	uploadParamMap := map[string]string{
 		"uploads":       "",
 		"output":        "json",
-		"profile":       "ugcupos/bup",
+		"profile":       lineProfile,
 		"filesize":      strconv.FormatInt(u.upVideo.videoSize, 10),
 		"partsize":      strconv.FormatInt(u.upVideo.chunkSize, 10),
 		"biz_id":        strconv.FormatInt(u.upVideo.bizId, 10),
-		"meta_upos_uri": u.getMetaUposUri(u.videoTitle, strconv.FormatInt(u.getVideoSize(), 10)),
+		"meta_upos_uri": u.upVideo.metaUposUrl,
 	}
 	var upinfo UpInfo
 	rsp, err := u.client.SetCommonHeader(
@@ -311,7 +306,7 @@ func (u *Up) upload() error {
 	jsonString, _ := json.Marshal(&reqjson)
 	uploadParamMap = map[string]string{
 		"output":   "json",
-		"profile":  "ugcupos/bup",
+		"profile":  lineProfile,
 		"name":     u.upVideo.videoName,
 		"uploadId": u.upVideo.uploadId,
 		"biz_id":   strconv.FormatInt(u.upVideo.bizId, 10),
@@ -400,16 +395,21 @@ func (u *Up) uploadPartWrapper(chunk int, start, end, size int, buf []byte, bar 
 	}
 }
 
-func (u *Up) getMetaUposUri(title string, totalSize string) string {
+func (u *Up) getPreUpInfo(title string, totalSize int64) *PreUpInfo {
 	var metaUposUri PreUpInfo
 	u.client.R().SetQueryParams(map[string]string{
-		"name":    title,
-		"size":    totalSize,
-		"r":       "upos",
-		"profile": "ugcupos/bup",
-		"ssl":     "0",
-		"version": "2.10.4.0",
-		"build":   "2100400",
-	}).SetResult(&metaUposUri).Get("https://member.bilibili.com/preupload")
-	return metaUposUri.UposUri
+		"name":          title,
+		"size":          strconv.FormatInt(totalSize, 10),
+		"r":             "upos",
+		"profile":       lineProfile,
+		"ssl":           "0",
+		"version":       "2.11.0",
+		"build":         "2110000",
+		"probe_version": "20221109",
+		"upcdn":         "bda2",
+		"zone":          "cs",
+		"webVersion":    "2.0.0",
+	}).SetResult(&metaUposUri).Get(fmt.Sprintf("https://member.bilibili.com/preupload?%s",
+		"probe_version=20221109&upcdn=bda2&zone=cs"))
+	return &metaUposUri
 }
