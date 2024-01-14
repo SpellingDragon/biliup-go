@@ -191,7 +191,7 @@ func (u *Up) Up() error {
 	u.upVideo.chunkSize = preupinfo.ChunkSize
 	u.upVideo.auth = preupinfo.Auth
 	u.upVideo.bizId = preupinfo.BizId
-	u.upVideo.metaUposUrl = u.getPreUpInfo(u.upVideo.videoName, u.upVideo.videoSize, metaProfile).UposUri
+	// u.upVideo.metaUposUrl = u.getPreUpInfo(u.upVideo.videoName, u.upVideo.videoSize, metaProfile).UposUri
 	// 上传
 	err := u.upload()
 	if err != nil {
@@ -245,13 +245,12 @@ func (u *Up) upload() error {
 		return errors.New(fmt.Sprintf("视频长度为0:%+v", u))
 	}
 	uploadParamMap := map[string]string{
-		"uploads":       "",
-		"output":        "json",
-		"profile":       uploadProfile,
-		"filesize":      strconv.FormatInt(u.upVideo.videoSize, 10),
-		"partsize":      strconv.FormatInt(u.upVideo.chunkSize, 10),
-		"biz_id":        strconv.FormatInt(u.upVideo.bizId, 10),
-		"meta_upos_uri": u.upVideo.metaUposUrl,
+		"uploads":  "",
+		"output":   "json",
+		"profile":  uploadProfile,
+		"filesize": strconv.FormatInt(u.upVideo.videoSize, 10),
+		"partsize": strconv.FormatInt(u.upVideo.chunkSize, 10),
+		"biz_id":   strconv.FormatInt(u.upVideo.bizId, 10),
 	}
 	var upinfo UpInfo
 	rsp, err := u.client.SetCommonHeader(
@@ -400,16 +399,15 @@ func (u *Up) uploadPartWrapper(chunk int, start, end, size int, buf []byte, bar 
 func (u *Up) getPreUpInfo(title string, totalSize int64, profile string) *PreUpInfo {
 	var preUpInfo PreUpInfo
 	u.client.R().SetQueryParams(map[string]string{
+		"profile":       profile,
 		"name":          title,
 		"size":          strconv.FormatInt(totalSize, 10),
 		"r":             "upos",
-		"profile":       profile,
 		"ssl":           "0",
 		"version":       "2.14.0.0",
 		"build":         "2140000",
 		"probe_version": "20221109",
 		"upcdn":         "bldsa",
-		"zone":          "cs",
 		"webVersion":    "2.14.0",
 	}).SetResult(&preUpInfo).Get("https://member.bilibili.com/preupload") // 移除URL中的查询参数
 	return &preUpInfo
