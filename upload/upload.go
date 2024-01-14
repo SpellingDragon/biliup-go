@@ -81,6 +81,7 @@ func NewUp(cookiePath string, threadNum int) (*Up, error) {
 		"cookie":     cookie,
 		"Connection": "keep-alive",
 	})
+	client.EnableDebugLog()
 	resp, _ := client.R().Get("https://api.bilibili.com/x/web-interface/nav")
 	uname := gjson.ParseBytes(resp.Bytes()).Get("data.uname").String()
 	if uname == "" {
@@ -235,7 +236,7 @@ func (u *Up) Up() error {
 	return err
 }
 
-const lineProfile = "ugcupos/bup"
+const lineProfile = "ugcfx/bup"
 
 func (u *Up) upload() error {
 	defer ants.Release()
@@ -403,13 +404,12 @@ func (u *Up) getPreUpInfo(title string, totalSize int64) *PreUpInfo {
 		"r":             "upos",
 		"profile":       lineProfile,
 		"ssl":           "0",
-		"version":       "2.11.0",
-		"build":         "2110000",
+		"version":       "2.14.0.0",
+		"build":         "2140000",
 		"probe_version": "20221109",
-		"upcdn":         "bda2",
+		"upcdn":         "bldsa",
 		"zone":          "cs",
-		"webVersion":    "2.0.0",
-	}).SetResult(&metaUposUri).Get(fmt.Sprintf("https://member.bilibili.com/preupload?%s",
-		"probe_version=20221109&upcdn=bda2&zone=cs"))
+		"webVersion":    "2.14.0",
+	}).SetResult(&metaUposUri).Get("https://member.bilibili.com/preupload") // 移除URL中的查询参数
 	return &metaUposUri
 }
