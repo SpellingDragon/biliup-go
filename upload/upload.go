@@ -184,7 +184,7 @@ func (u *Up) Up() error {
 	// 获取预上传信息
 	preupinfo := u.getPreUpInfo(u.upVideo.videoName, u.upVideo.videoSize, uploadProfile)
 	// 设置上传参数
-	upURI := strings.Split(preupinfo.UposUri, "://")[1]
+	upURI := strings.ReplaceAll(preupinfo.UposUri, "upos://", "")
 	u.upVideo.uploadBaseUrl =
 		fmt.Sprintf("https:%s/%s?uploads&output=json", preupinfo.Endpoint, upURI)
 	u.upVideo.biliFileName = strings.Split(strings.Split(upURI, "/")[1], ".")[0]
@@ -236,7 +236,7 @@ func (u *Up) Up() error {
 	return err
 }
 
-const uploadProfile = "ugcfx/bup"
+const uploadProfile = "ugcupos/bup"
 const metaProfile = "fxmeta/bup"
 
 func (u *Up) upload() error {
@@ -407,7 +407,8 @@ func (u *Up) getPreUpInfo(title string, totalSize int64, profile string) *PreUpI
 		"version":       "2.14.0.0",
 		"build":         "2140000",
 		"probe_version": "20221109",
-		"upcdn":         "bldsa",
+		"upcdn":         "bda2",
+		"zone":          "cs",
 		"webVersion":    "2.14.0",
 	}).SetResult(&preUpInfo).Get("https://member.bilibili.com/preupload") // 移除URL中的查询参数
 	return &preUpInfo
