@@ -186,7 +186,7 @@ func (u *Up) Up() error {
 	// 设置上传参数
 	upURI := strings.ReplaceAll(preupinfo.UposUri, "upos://", "")
 	u.upVideo.uploadBaseUrl =
-		fmt.Sprintf("https:%s/%s?uploads&output=json", preupinfo.Endpoint, upURI)
+		fmt.Sprintf("https:%s/%s", preupinfo.Endpoint, upURI)
 	u.upVideo.biliFileName = strings.Split(strings.Split(upURI, "/")[1], ".")[0]
 	u.upVideo.chunkSize = preupinfo.ChunkSize
 	u.upVideo.auth = preupinfo.Auth
@@ -245,8 +245,6 @@ func (u *Up) upload() error {
 		return errors.New(fmt.Sprintf("视频长度为0:%+v", u))
 	}
 	uploadParamMap := map[string]string{
-		"uploads":  "",
-		"output":   "json",
 		"profile":  uploadProfile,
 		"filesize": strconv.FormatInt(u.upVideo.videoSize, 10),
 		"partsize": strconv.FormatInt(u.upVideo.chunkSize, 10),
@@ -255,7 +253,7 @@ func (u *Up) upload() error {
 	var upinfo UpInfo
 	rsp, err := u.client.SetCommonHeader(
 		"X-Upos-Auth", u.upVideo.auth).R().
-		SetQueryParams(uploadParamMap).SetResult(&upinfo).Post(u.upVideo.uploadBaseUrl)
+		SetQueryParams(uploadParamMap).SetResult(&upinfo).Post(u.upVideo.uploadBaseUrl + "?uploads&output=json")
 	if err != nil {
 		log.Printf("上传失败 req:%+v rsp:%+v err:%s", uploadParamMap, rsp, err.Error())
 		return err
@@ -365,51 +363,20 @@ type taskFunc func()
 
 func (u *Up) uploadPartWrapper(chunk int, start, end, size int, buf []byte, bar *progressbar.ProgressBar) taskFunc {
 	return func() {
-		defer wg.Done()
-		resp, _ := u.client.R().SetHeaders(map[string]string{
-			"Content-Type":   "application/octet-stream",
-			"Content-Length": strconv.Itoa(size),
-		}).SetQueryParams(map[string]string{
-			"partNumber": strconv.Itoa(chunk + 1),
-			"uploadId":   u.upVideo.uploadId,
-			"chunk":      strconv.Itoa(chunk),
-			"chunks":     strconv.Itoa(int(u.chunks)),
-			"size":       strconv.Itoa(size),
-			"start":      strconv.Itoa(start),
-			"end":        strconv.Itoa(end),
-			"total":      strconv.FormatInt(u.upVideo.videoSize, 10),
-		}).SetBodyBytes(buf).SetRetryCount(5).AddRetryHook(func(resp *req.Response, err error) {
-			log.Println("重试发送分片", chunk)
-			return
-		}).
-			AddRetryCondition(func(resp *req.Response, err error) bool {
-				return err != nil || resp.StatusCode != 200
-			}).Put(u.upVideo.uploadBaseUrl)
-		bar.Add(len(buf) / 1024 / 1024)
-		if resp.StatusCode != 200 {
-			log.Println("分片", chunk, "上传失败", resp.StatusCode, "size", size)
-		}
-		u.partChan <- Part{
-			PartNumber: int64(chunk + 1),
-			ETag:       "etag",
-		}
+		u.uploadPart(chunk, start, end, size, buf, bar)
 	}
 }
 
 func (u *Up) getPreUpInfo(title string, totalSize int64, profile string) *PreUpInfo {
 	var preUpInfo PreUpInfo
 	u.client.R().SetQueryParams(map[string]string{
-		"profile":       profile,
-		"name":          title,
-		"size":          strconv.FormatInt(totalSize, 10),
-		"r":             "upos",
-		"ssl":           "0",
-		"version":       "2.14.0.0",
-		"build":         "2140000",
-		"probe_version": "20221109",
-		"upcdn":         "bda2",
-		"zone":          "cs",
-		"webVersion":    "2.14.0",
+		"profile": profile,
+		"name":    title,
+		"size":    strconv.FormatInt(totalSize, 10),
+		"r":       "upos",
+		"ssl":     "0",
+		"version": "2.11.0",
+		"build":   "2110000",
 	}).SetResult(&preUpInfo).Get("https://member.bilibili.com/preupload") // 移除URL中的查询参数
 	return &preUpInfo
 }
