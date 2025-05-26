@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/imroc/req/v3"
 	"github.com/panjf2000/ants/v2"
@@ -43,6 +44,9 @@ type Up struct {
 	threadNum int
 	partChan  chan Part
 	chunks    int64
+
+	// 添加回调字段
+	callback UploadCallback
 }
 
 type UpVideo struct {
@@ -180,7 +184,20 @@ func (u *Up) uploadCover(path string) string {
 	return coverinfo.Data.Url
 }
 
-func (u *Up) Up() error {
+// 添加设置回调的方法
+func (u *Up) SetCallback(callback UploadCallback) *Up {
+	u.callback = callback
+	return u
+}
+
+// 修改Up方法
+func (u *Up) Up() (*UploadResult, error) {
+	result := &UploadResult{
+		VideoSize:  u.upVideo.videoSize,
+		VideoTitle: u.videoTitle,
+		UploadTime: time.Now().Unix(),
+	}
+
 	// 获取预上传信息
 	preupinfo := u.getPreUpInfo(u.upVideo.videoName, u.upVideo.videoSize, uploadProfile)
 	// 设置上传参数
@@ -195,7 +212,16 @@ func (u *Up) Up() error {
 	// 上传
 	err := u.upload()
 	if err != nil {
-		return err
+		result.Success = false
+		result.Error = err
+		result.Message = "上传失败: " + err.Error()
+
+		// 调用回调函数
+		if u.callback != nil {
+			u.callback(result)
+		}
+
+		return result, err
 	}
 	// 设置投稿信息
 	var addreq = AddReqJson{
@@ -232,8 +258,48 @@ func (u *Up) Up() error {
 	resp, err := u.client.R().SetQueryParams(map[string]string{
 		"csrf": u.csrf,
 	}).SetBodyJsonMarshal(addreq).Post("https://member.bilibili.com/x/vu/web/add/v3")
+
+	if err != nil {
+		result.Success = false
+		result.Error = err
+		result.Message = "投稿失败: " + err.Error()
+
+		// 调用回调函数
+		if u.callback != nil {
+			u.callback(result)
+		}
+
+		return result, err
+	}
+
+	// 解析响应
+	var uploadResp UploadResult
+	err = json.Unmarshal(resp.Bytes(), &uploadResp)
+	if err != nil {
+		result.Success = false
+		result.Error = err
+		result.Message = "解析响应失败: " + err.Error()
+	} else {
+		// 复制响应数据到结果中
+		result.Code = uploadResp.Code
+		result.Message = uploadResp.Message
+		result.Ttl = uploadResp.Ttl
+		result.Data = uploadResp.Data
+
+		if uploadResp.Code == 0 {
+			result.Success = true
+		} else {
+			result.Success = false
+		}
+	}
+
+	// 调用回调函数
+	if u.callback != nil {
+		u.callback(result)
+	}
+
 	log.Println(resp.String())
-	return err
+	return result, err
 }
 
 const uploadProfile = "ugcupos/bup"
@@ -331,8 +397,7 @@ func (u *Up) upload() error {
 func (u *Up) uploadPart(chunk int, start, end, size int, buf []byte, bar *progressbar.ProgressBar) {
 	defer wg.Done()
 	resp, _ := u.client.R().SetHeaders(map[string]string{
-		"Content-Type":   "application/octet-stream",
-		"Content-Length": strconv.Itoa(size),
+		"Content-Type": "application/octet-stream",
 	}).SetQueryParams(map[string]string{
 		"partNumber": strconv.Itoa(chunk + 1),
 		"uploadId":   u.upVideo.uploadId,

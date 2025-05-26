@@ -75,3 +75,30 @@ type CoverInfo struct {
 		Url string `json:"url"`
 	} `json:"data"`
 }
+
+// 添加上传结果结构体
+type UploadResult struct {
+	Code    int64  `json:"code"`
+	Message string `json:"message"`
+	Ttl     int64  `json:"ttl"`
+	Data    struct {
+		Aid  int64  `json:"aid"`
+		Bvid string `json:"bvid"`
+	} `json:"data"`
+	Success     bool   `json:"success"`
+	Error       error  `json:"error,omitempty"`
+	VideoSize   int64  `json:"video_size,omitempty"`
+	VideoTitle  string `json:"video_title,omitempty"`
+	UploadTime  int64  `json:"upload_time,omitempty"`
+}
+
+// 定义回调函数类型
+type UploadCallback func(result *UploadResult)
+
+// 定义上传阶段常量
+const (
+	StagePreUpload = "pre_upload"
+	StageUploading = "uploading"
+	StageCompleted = "completed"
+	StageFailed    = "failed"
+)
